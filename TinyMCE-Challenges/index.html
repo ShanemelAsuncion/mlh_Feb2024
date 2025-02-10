@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Editor - TinyMCE</title>
+    <script src="https://cdn.tiny.cloud/1/2lzelyzh6cvq2q9314ipsdisduxlw5uh9ww990v0d6i3px75/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+    <script type="text/javascript">
+        (function() {
+            // Replace YOUR_PUBLIC_KEY with the actual key from your EmailJS account
+            emailjs.init("YzvdTCNGMykl8JunwV0bg");
+        })();
+    </script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .editor-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .template-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        select {
+            padding: 8px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+        }
+        .placeholder-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+        }
+        .placeholder-item {
+            margin-bottom: 10px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .placeholder-item input {
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            flex: 1;
+        }
+        .preview-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background-color: #fff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .dynamic-tags {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        .tag-button {
+            padding: 5px 10px;
+            background-color: #e9ecef;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            color: #495057;
+        }
+        .tag-button:hover {
+            background-color: #dee2e6;
+        }
+        .tag-category {
+            margin-bottom: 15px;
+        }
+        .tag-category h4 {
+            margin-bottom: 10px;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="editor-container">
+        <h1>Email Editor</h1>
+        <div class="template-controls">
+            <select id="templateSelector" onchange="loadTemplate()">
+                <option value="default">Select a template...</option>
+                <option value="welcome">Welcome Email</option>
+                <option value="meeting">Meeting Invitation</option>
+                <option value="followup">Follow-up Email</option>
+                <option value="newsletter">Newsletter Template</option>
+                <option value="promotion">Promotional Email</option>
+            </select>
+            <button onclick="saveAsTemplate()">Save as New Template</button>
+        </div>
+
+        <!-- Add Dynamic Tags Section -->
+        <div class="dynamic-tags">
+            <div class="tag-category">
+                <h4>Basic Information</h4>
+                <button class="tag-button" onclick="insertDynamicTag('recipient.name')">Recipient Name</button>
+                <button class="tag-button" onclick="insertDynamicTag('recipient.email')">Recipient Email</button>
+                <button class="tag-button" onclick="insertDynamicTag('sender.name')">Sender Name</button>
+                <button class="tag-button" onclick="insertDynamicTag('sender.title')">Sender Title</button>
+            </div>
+            <div class="tag-category">
+                <h4>Dynamic Content</h4>
+                <button class="tag-button" onclick="insertDynamicTag('current.date')">Current Date</button>
+                <button class="tag-button" onclick="insertDynamicTag('current.time')">Current Time</button>
+                <button class="tag-button" onclick="insertDynamicTag('company.name')">Company Name</button>
+                <button class="tag-button" onclick="insertDynamicTag('company.logo')">Company Logo</button>
+            </div>
+            <div class="tag-category">
+                <h4>Custom Fields</h4>
+                <button class="tag-button" onclick="insertCustomField()">Add Custom Field</button>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button onclick="insertPlaceholder()">Insert Placeholder</button>
+            <button onclick="previewEmail()">Preview</button>
+            <button onclick="sendEmail()">Send Email</button>
+            <button onclick="saveAsDraft()">Save as Draft</button>
+        </div>
+        <textarea id="emailEditor"></textarea>
+        
+        <div id="placeholderPanel" class="placeholder-panel" style="display: none;">
+            <h3>Fill in Placeholders</h3>
+            <div id="placeholderFields"></div>
+            <button onclick="applyPlaceholders()">Apply Values</button>
+        </div>
+
+        <div id="previewPanel" class="preview-panel" style="display: none;">
+            <h3>Preview</h3>
+            <div id="previewContent"></div>
+        </div>
+    </div>
+
+    <script>
+        // Email templates with enhanced dynamic content and inline CSS
+        const templates = {
+            welcome: {
+                subject: 'Welcome to {company.name}!',
+                content: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+                        <h2 style="color: #333333; font-size: 24px; margin-bottom: 20px;">Welcome aboard, {recipient.name}!</h2>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">We're excited to have you join {company.name} on {current.date}.</p>
+                        <div style="background-color: #f8f9fa; border-radius: 5px; padding: 20px; margin: 20px 0;">
+                            <h3 style="color: #333333; font-size: 18px; margin-bottom: 15px;">Your Account Details:</h3>
+                            <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">📧 Username: {recipient.email}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">📅 Start Date: {current.date}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">🏢 Department: {recipient.department}</li>
+                            </ul>
+                        </div>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Your orientation session is scheduled for {orientation.date} at {orientation.time}.</p>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">If you have any questions, please don't hesitate to reach out to {support.email}.</p>
+                        <div style="border-top: 1px solid #eeeeee; margin-top: 30px; padding-top: 20px;">
+                            <p style="color: #666666; font-size: 16px; margin: 0;">Best regards,<br>
+                            <strong style="color: #333333;">{sender.name}</strong><br>
+                            <span style="color: #999999;">{sender.title}</span></p>
+                        </div>
+                    </div>
+                `
+            },
+            meeting: {
+                subject: 'Meeting Invitation: {meeting.topic}',
+                content: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+                        <h2 style="color: #333333; font-size: 24px; margin-bottom: 20px;">Meeting Invitation: {meeting.topic}</h2>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Dear {recipient.name},</p>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">I hope this email finds you well. I would like to invite you to a meeting scheduled for {meeting.date} at {meeting.time}.</p>
+                        
+                        <div style="background-color: #f8f9fa; border-radius: 5px; padding: 20px; margin: 20px 0;">
+                            <h3 style="color: #333333; font-size: 18px; margin-bottom: 15px;">Meeting Details:</h3>
+                            <ul style="list-style-type: none; padding: 0; margin: 0;">
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">📌 Topic: {meeting.topic}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">📅 Date: {meeting.date}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">⏰ Time: {meeting.time}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">📍 Location: {meeting.location}</li>
+                                <li style="color: #666666; font-size: 16px; margin-bottom: 10px;">⌛ Duration: {meeting.duration}</li>
+                            </ul>
+                        </div>
+
+                        <div style="background-color: #ffffff; border: 1px solid #eeeeee; border-radius: 5px; padding: 20px; margin: 20px 0;">
+                            <h3 style="color: #333333; font-size: 18px; margin-bottom: 15px;">Agenda:</h3>
+                            <div style="color: #666666; font-size: 16px; line-height: 1.5;">{meeting.agenda}</div>
+                        </div>
+
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Please confirm your attendance by {rsvp.deadline}.</p>
+                        
+                        <div style="border-top: 1px solid #eeeeee; margin-top: 30px; padding-top: 20px;">
+                            <p style="color: #666666; font-size: 16px; margin: 0;">Best regards,<br>
+                            <strong style="color: #333333;">{sender.name}</strong><br>
+                            <span style="color: #999999;">{sender.title}</span></p>
+                        </div>
+                    </div>
+                `
+            },
+            promotion: {
+                subject: 'Special Offer for {recipient.name}',
+                content: `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff;">
+                        <h2 style="color: #333333; font-size: 24px; text-align: center; margin-bottom: 20px;">Exclusive Offer Just for You!</h2>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Dear {recipient.name},</p>
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">We're excited to bring you this special offer from {company.name}!</p>
+                        
+                        <div style="text-align: center; margin: 20px 0;">
+                            {promotion.banner}
+                        </div>
+
+                        <div style="background-color: #f8f9fa; border-radius: 5px; padding: 20px; margin: 20px 0;">
+                            <h3 style="color: #333333; font-size: 18px; margin-bottom: 15px;">Your Special Offer:</h3>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.5;">{promotion.details}</p>
+                            <div style="text-align: center; margin-top: 20px;">
+                                <p style="color: #666666; font-size: 16px; margin-bottom: 10px;">Use Code:</p>
+                                <div style="background-color: #ffffff; border: 2px dashed #007bff; padding: 10px; display: inline-block;">
+                                    <strong style="color: #007bff; font-size: 20px;">{promotion.code}</strong>
+                                </div>
+                                <p style="color: #999999; font-size: 14px; margin-top: 10px;">Valid until {promotion.endDate}</p>
+                            </div>
+                        </div>
+
+                        <p style="color: #666666; font-size: 16px; line-height: 1.5; margin-bottom: 15px;">Don't miss out on this exclusive opportunity!</p>
+                        
+                        <div style="border-top: 1px solid #eeeeee; margin-top: 30px; padding-top: 20px; text-align: center;">
+                            <p style="color: #666666; font-size: 16px; margin: 0;">Best regards,<br>
+                            <strong style="color: #333333;">{company.name} Team</strong></p>
+                        </div>
+                    </div>
+                `
+            }
+        };
+
+        // Initialize TinyMCE
+        tinymce.init({
+            selector: '#emailEditor',
+            plugins: 'anchor autolink charmap codesample emoticons image link lists media searchreplace table visualblocks wordcount',
+            toolbar: 'undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat | template',
+            height: 500,
+            menubar: true,
+            setup: function(editor) {
+                editor.on('init', function() {
+                    editor.setContent('<h2>Subject: </h2><p>Select a template or start typing...</p>');
+                });
+            }
+        });
+
+        // Dynamic tag handlers
+        const dynamicTags = {
+            'current.date': () => new Date().toLocaleDateString(),
+            'current.time': () => new Date().toLocaleTimeString(),
+            'company.name': () => 'Your Company Name', // This could be fetched from settings
+            'company.logo': () => '<img src="company-logo.png" alt="Company Logo">', // This could be configurable
+        };
+
+        function insertDynamicTag(tag) {
+            tinymce.get('emailEditor').insertContent(`{${tag}}`);
+        }
+
+        function insertCustomField() {
+            const fieldName = prompt('Enter custom field name:');
+            if (fieldName) {
+                const tag = fieldName.toLowerCase().replace(/\s+/g, '.');
+                insertDynamicTag(tag);
+            }
+        }
+
+        // Enhanced placeholder processing
+        function processPlaceholders(content) {
+            // Process dynamic tags first
+            Object.entries(dynamicTags).forEach(([tag, handler]) => {
+                const regex = new RegExp(`{${tag}}`, 'g');
+                content = content.replace(regex, handler());
+            });
+
+            return content;
+        }
+
+        // Enhanced preview function
+        function previewEmail() {
+            let content = tinymce.get('emailEditor').getContent();
+            content = processPlaceholders(content);
+            document.getElementById('previewContent').innerHTML = content;
+            document.getElementById('previewPanel').style.display = 'block';
+        }
+
+        // Enhanced template loading
+        function loadTemplate() {
+            const templateName = document.getElementById('templateSelector').value;
+            if (templateName === 'default') return;
+
+            const template = templates[templateName];
+            if (template) {
+                tinymce.get('emailEditor').setContent(template.content);
+                showPlaceholderPanel(template.content);
+            }
+        }
+
+        // Enhanced placeholder extraction
+        function extractPlaceholders(content) {
+            const regex = /{([^}]+)}/g;
+            const placeholders = new Set();
+            let match;
+            while ((match = regex.exec(content)) !== null) {
+                // Skip dynamic tags
+                if (!dynamicTags[match[1]]) {
+                    placeholders.add(match[1]);
+                }
+            }
+            return Array.from(placeholders);
+        }
+
+        function showPlaceholderPanel(content) {
+            const placeholders = extractPlaceholders(content);
+            const panel = document.getElementById('placeholderPanel');
+            const fields = document.getElementById('placeholderFields');
+            fields.innerHTML = '';
+
+            placeholders.forEach(placeholder => {
+                const div = document.createElement('div');
+                div.className = 'placeholder-item';
+                div.innerHTML = `
+                    <label>${placeholder}:</label>
+                    <input type="text" id="${placeholder}" placeholder="Enter ${placeholder}">
+                `;
+                fields.appendChild(div);
+            });
+
+            panel.style.display = 'block';
+            document.getElementById('previewPanel').style.display = 'none';
+        }
+
+        function applyPlaceholders() {
+            let content = tinymce.get('emailEditor').getContent();
+            const placeholders = extractPlaceholders(content);
+
+            placeholders.forEach(placeholder => {
+                const value = document.getElementById(placeholder).value || `{${placeholder}}`;
+                content = content.replace(new RegExp(`{${placeholder}}`, 'g'), value);
+            });
+
+            tinymce.get('emailEditor').setContent(content);
+        }
+
+        function insertPlaceholder() {
+            const placeholder = prompt('Enter placeholder name (e.g., recipient_name):');
+            if (placeholder) {
+                tinymce.get('emailEditor').insertContent(`{${placeholder}}`);
+            }
+        }
+
+        function saveAsTemplate() {
+            const templateName = prompt('Enter a name for your template:');
+            if (templateName) {
+                const content = tinymce.get('emailEditor').getContent();
+                templates[templateName] = {
+                    subject: 'Custom Template',
+                    content: content
+                };
+                
+                // Add to template selector
+                const option = document.createElement('option');
+                option.value = templateName;
+                option.textContent = templateName;
+                document.getElementById('templateSelector').appendChild(option);
+            }
+        }
+
+        function sendEmail() {
+            const content = tinymce.get('emailEditor').getContent();
+            const recipientEmail = prompt("Enter recipient's email address:");
+            
+            if (!recipientEmail) {
+                console.log('Email sending cancelled: No recipient provided');
+                return;
+            }
+
+            // Basic email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(recipientEmail)) {
+                alert('Please enter a valid email address');
+                return;
+            }
+
+            const subject = prompt("Enter email subject:");
+            if (!subject) {
+                console.log('Email sending cancelled: No subject provided');
+                return;
+            }
+
+            // Process content and show loading state
+            const processedContent = processPlaceholders(content);
+            console.log('Preparing to send email...');
+
+            const templateParams = {
+                to_email: recipientEmail,
+                subject: subject,
+                message: processedContent
+            };
+
+            // Replace these with your actual EmailJS service and template IDs
+            emailjs.send(
+                'SERVICE_ID_HERE',  // Your EmailJS service ID
+                'TEMPLATE_ID_HERE', // Your EmailJS template ID
+                templateParams
+            ).then(
+                function(response) {
+                    console.log('Email sent successfully!', response);
+                    alert('Email sent successfully!');
+                },
+                function(error) {
+                    console.error('Failed to send email:', error);
+                    alert('Failed to send email: ' + (error.text || 'Please check your EmailJS configuration'));
+                }
+            );
+        }
+
+        function saveAsDraft() {
+            const content = tinymce.get('emailEditor').getContent();
+            console.log('Saving draft:', content);
+            alert('Draft saving feature will be implemented soon!');
+        }
+    </script>
+</body>
+</html>
