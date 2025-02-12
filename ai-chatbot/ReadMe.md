@@ -9,7 +9,6 @@ The AI Chatbot is an interactive chat interface that leverages OpenAI's GPT-3.5-
 ### Key Features
 - Clean and intuitive chat interface
 - Real-time streaming responses from GPT
-- Session state management
 - Modern UI built with Streamlit
 - Support for GPT-3.5-turbo model
 
